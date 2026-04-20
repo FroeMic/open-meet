@@ -1,0 +1,55 @@
+{
+  "name": "open-meet",
+  "packageManager": "bun@1.3.5",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "packages/features/*"
+  ],
+  "scripts": {
+    "dev": "bun run dev:api",
+    "dev:api": "bun run --cwd apps/api dev",
+    "dev:meeting-agent": "bun run --cwd apps/meeting-agent dev",
+    "dev:web": "bun run --cwd apps/web dev",
+    "dev:worker": "bun run --cwd apps/worker dev",
+    "dev:all": "sh -c 'trap \"kill 0\" EXIT INT TERM; bun run dev:api & bun run dev:worker & bun run dev:web & bun run dev:meeting-agent'",
+    "format": "bun run format:api && bun run format:worker && bun run format:web && bun run format:meeting-agent && bun run format:feature-meeting-agent",
+    "format:api": "bun run --cwd apps/api format",
+    "format:worker": "bun run --cwd apps/worker format",
+    "format:web": "bun run --cwd apps/web format",
+    "format:meeting-agent": "bun run --cwd apps/meeting-agent format",
+    "format:feature-meeting-agent": "bun run --cwd packages/features/meeting-agent format",
+    "lint": "bun run lint:api && bun run lint:worker && bun run lint:web && bun run lint:meeting-agent && bun run lint:feature-meeting-agent",
+    "lint:api": "bun run --cwd apps/api lint",
+    "lint:worker": "bun run --cwd apps/worker lint",
+    "lint:web": "bun run --cwd apps/web lint",
+    "lint:meeting-agent": "bun run --cwd apps/meeting-agent lint",
+    "lint:feature-meeting-agent": "bun run --cwd packages/features/meeting-agent lint",
+    "test": "bun run test:api && bun run test:worker && bun run test:web && bun run test:meeting-agent && bun run test:feature-meeting-agent",
+    "test:api": "bun run --cwd apps/api test",
+    "test:worker": "bun run --cwd apps/worker test",
+    "test:web": "bun run --cwd apps/web test",
+    "test:meeting-agent": "bun run --cwd apps/meeting-agent test",
+    "test:feature-meeting-agent": "bun run --cwd packages/features/meeting-agent test",
+    "build": "bun run build:api && bun run build:worker && bun run build:web && bun run build:meeting-agent && bun run build:feature-meeting-agent",
+    "build:api": "bun run --cwd apps/api build",
+    "build:worker": "bun run --cwd apps/worker build",
+    "build:web": "bun run --cwd apps/web build",
+    "build:meeting-agent": "bun run --cwd apps/meeting-agent build",
+    "build:feature-meeting-agent": "bun run --cwd packages/features/meeting-agent build",
+    "check": "bun run lint && bun run test && bun run build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.2.0",
+    "@types/node": "^24.9.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.6",
+    "@hono/zod-validator": "^0.7.4",
+    "hono": "^4.10.5",
+    "zod": "^4.1.12"
+  }
+}
