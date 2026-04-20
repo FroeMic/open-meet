@@ -55,4 +55,44 @@ describe("api app", () => {
       transcriptSegments: [],
     })
   })
+
+  test("updates a run from a MeetingBaas lifecycle webhook", async () => {
+    const app = createApiApp({
+      meetingAgent: {
+        store: createInMemoryMeetingAgentStore(),
+      },
+    })
+    const createResponse = await app.request(
+      "/api/workspace/acme/meeting-agent/runs",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          meetingUrl: "https://meet.google.com/abc-defg-hij",
+        }),
+      },
+    )
+    const createdBody = await createResponse.json()
+
+    const webhookResponse = await app.request("/api/webhooks/meetingbaas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: "evt_123",
+        type: "bot.status_change",
+        bot: { id: createdBody.run.meetingBaasBotId },
+        status: "in_call",
+      }),
+    })
+
+    expect(webhookResponse.status).toBe(202)
+    const detailResponse = await app.request(
+      `/api/workspace/acme/meeting-agent/runs/${createdBody.run.id}`,
+    )
+
+    await expect(detailResponse.json()).resolves.toMatchObject({
+      run: { status: "joined" },
+      recentEvents: [{ externalEventId: "evt_123" }],
+    })
+  })
 })

@@ -24,6 +24,22 @@ describe("file meeting-agent store", () => {
         status: "joining",
         sidecarSessionId: "fake_run",
       })
+      await firstStore.appendEvent({
+        runId: run.id,
+        eventType: "bot_status_changed",
+        source: "meetingbaas",
+        externalEventId: "evt_123",
+        occurredAt: "2026-04-20T10:00:00.000Z",
+        payload: { status: "joined" },
+      })
+      await firstStore.appendEvent({
+        runId: run.id,
+        eventType: "bot_status_changed",
+        source: "meetingbaas",
+        externalEventId: "evt_123",
+        occurredAt: "2026-04-20T10:00:00.000Z",
+        payload: { status: "joined" },
+      })
 
       const secondStore = createFileMeetingAgentStore(filePath)
 
@@ -32,6 +48,7 @@ describe("file meeting-agent store", () => {
         status: "joining",
         sidecarSessionId: "fake_run",
       })
+      await expect(secondStore.listEvents(run.id)).resolves.toHaveLength(1)
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }

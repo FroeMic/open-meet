@@ -24,4 +24,25 @@ describe("in-memory meeting-agent store", () => {
       sidecarSessionId: "fake_run",
     })
   })
+
+  test("returns idempotent event records", async () => {
+    const store = createInMemoryMeetingAgentStore()
+    const run = await store.createRun({
+      orgSlug: "acme",
+      meetingUrl: "https://meet.google.com/abc-defg-hij",
+      botName: "Otto Meeting Agent",
+      status: "queued",
+    })
+
+    await store.appendEvent({
+      runId: run.id,
+      eventType: "bot_status_changed",
+      source: "meetingbaas",
+      externalEventId: "evt_123",
+      occurredAt: "2026-04-20T10:00:00.000Z",
+      payload: { status: "joined" },
+    })
+
+    await expect(store.listEvents(run.id)).resolves.toHaveLength(1)
+  })
 })

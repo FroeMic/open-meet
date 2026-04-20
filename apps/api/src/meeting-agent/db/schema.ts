@@ -16,4 +16,15 @@ export const meetingAgentRuns = sqliteTable("meeting_agent_runs", {
   updatedAt: text("updated_at").notNull(),
 })
 
+export const meetingAgentEvents = sqliteTable("meeting_agent_events", {
+  id: text("id").primaryKey(),
+  runId: text("meeting_agent_run_id").notNull(),
+  eventType: text("event_type").notNull(),
+  source: text("source").notNull(),
+  externalEventId: text("external_event_id"),
+  occurredAt: text("occurred_at").notNull(),
+  payloadJson: text("payload_json").notNull(),
+  createdAt: text("created_at").notNull(),
+})
+
 export type MeetingAgentRunRow = typeof meetingAgentRuns.$inferSelect

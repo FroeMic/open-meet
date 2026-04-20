@@ -8,6 +8,13 @@ import { Hono } from "hono"
 
 import { createDefaultMeetingAgentStore } from "./file-store"
 import {
+  getMeetingBaasBotId,
+  getMeetingBaasEventId,
+  getMeetingBaasEventType,
+  getMeetingBaasStatus,
+  mapMeetingBaasRunStatus,
+} from "./lifecycle"
+import {
   createMeetingTransportFromEnv,
   type MeetingTransport,
 } from "./meeting-transport"
@@ -95,7 +102,7 @@ export function createMeetingAgentRouter(
         {
           run,
           latestState: null,
-          recentEvents: [],
+          recentEvents: await store.listEvents(run.id),
           transcriptSegments: [],
           delegations: [],
         },
@@ -119,15 +126,83 @@ export function createMeetingAgentRouter(
 
   router.post("/api/webhooks/meetingbaas", async (context) => {
     const payload = await context.req.json().catch(() => ({}))
+    const botId = getMeetingBaasBotId(payload)
+    const run = botId ? await store.getRunByMeetingBaasBotId(botId) : null
+
+    if (!run) {
+      return context.json(
+        {
+          accepted: true,
+          matched: false,
+        },
+        202,
+      )
+    }
+
+    const eventType = getMeetingBaasEventType(payload)
+    const providerEventType =
+      typeof payload === "object" && payload !== null && "type" in payload
+        ? String(payload.type)
+        : undefined
+    const nextStatus = mapMeetingBaasRunStatus(
+      providerEventType,
+      getMeetingBaasStatus(payload),
+    )
+    const event = await store.appendEvent({
+      runId: run.id,
+      eventType,
+      source: "meetingbaas",
+      externalEventId: getMeetingBaasEventId(payload),
+      occurredAt: new Date().toISOString(),
+      payload: payload as Record<string, unknown>,
+    })
+
+    if (nextStatus) {
+      await store.updateRun(run.id, { status: nextStatus })
+    }
 
     return context.json(
       {
         accepted: true,
-        verification: "svix_not_configured",
-        eventType:
-          typeof payload === "object" && payload !== null && "type" in payload
-            ? payload.type
-            : "unknown",
+        matched: true,
+        eventId: event.id,
+        runId: run.id,
+      },
+      202,
+    )
+  })
+
+  router.post("/api/webhooks/meetingbaas/callback/:runId", async (context) => {
+    const runId = context.req.param("runId")
+    const payload = await context.req.json().catch(() => ({}))
+    const eventType = getMeetingBaasEventType(payload)
+    const providerEventType =
+      typeof payload === "object" && payload !== null && "type" in payload
+        ? String(payload.type)
+        : undefined
+    const nextStatus = mapMeetingBaasRunStatus(
+      providerEventType,
+      getMeetingBaasStatus(payload),
+    )
+
+    const event = await store.appendEvent({
+      runId,
+      eventType,
+      source: "meetingbaas",
+      externalEventId: getMeetingBaasEventId(payload),
+      occurredAt: new Date().toISOString(),
+      payload: payload as Record<string, unknown>,
+    })
+
+    if (nextStatus) {
+      await store.updateRun(runId, { status: nextStatus })
+    }
+
+    return context.json(
+      {
+        accepted: true,
+        eventId: event.id,
+        runId,
       },
       202,
     )

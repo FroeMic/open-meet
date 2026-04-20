@@ -5,6 +5,7 @@ import type { MeetingAgentRunRecord, MeetingAgentStore } from "./store"
 
 interface PersistedMeetingAgentRuns {
   runs: MeetingAgentRunRecord[]
+  events: Awaited<ReturnType<MeetingAgentStore["appendEvent"]>>[]
 }
 
 export function createFileMeetingAgentStore(
@@ -27,6 +28,7 @@ export function createFileMeetingAgentStore(
       }
 
       writeState(filePath, {
+        ...state,
         runs: [...state.runs, run],
       })
 
@@ -39,10 +41,51 @@ export function createFileMeetingAgentStore(
         ) ?? null
       )
     },
+    async getRunByMeetingBaasBotId(meetingBaasBotId) {
+      return (
+        readState(filePath).runs.find(
+          (run) => run.meetingBaasBotId === meetingBaasBotId,
+        ) ?? null
+      )
+    },
     async listRuns(orgSlug) {
       return readState(filePath)
         .runs.filter((run) => run.orgSlug === orgSlug)
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    },
+    async listEvents(runId) {
+      return readState(filePath)
+        .events.filter((event) => event.runId === runId)
+        .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
+    },
+    async appendEvent(input) {
+      const state = readState(filePath)
+      const existingEvent =
+        input.externalEventId === undefined
+          ? undefined
+          : state.events.find(
+              (event) =>
+                event.runId === input.runId &&
+                event.eventType === input.eventType &&
+                event.externalEventId === input.externalEventId,
+            )
+
+      if (existingEvent) {
+        return existingEvent
+      }
+
+      const event = {
+        id: crypto.randomUUID(),
+        ...input,
+        createdAt: new Date().toISOString(),
+      }
+
+      writeState(filePath, {
+        ...state,
+        events: [...state.events, event],
+      })
+
+      return event
     },
     async updateRun(runId, patch) {
       const state = readState(filePath)
@@ -59,6 +102,7 @@ export function createFileMeetingAgentStore(
       }
 
       writeState(filePath, {
+        ...state,
         runs: state.runs.map((run) => (run.id === runId ? updatedRun : run)),
       })
 
@@ -77,10 +121,17 @@ export function createDefaultMeetingAgentStore() {
 
 function readState(filePath: string): PersistedMeetingAgentRuns {
   if (!existsSync(filePath)) {
-    return { runs: [] }
+    return { runs: [], events: [] }
   }
 
-  return JSON.parse(readFileSync(filePath, "utf8")) as PersistedMeetingAgentRuns
+  const state = JSON.parse(
+    readFileSync(filePath, "utf8"),
+  ) as Partial<PersistedMeetingAgentRuns>
+
+  return {
+    runs: state.runs ?? [],
+    events: state.events ?? [],
+  }
 }
 
 function writeState(filePath: string, state: PersistedMeetingAgentRuns) {
