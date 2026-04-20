@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest"
 
 import { createApiApp } from "./app"
+import { createInMemoryMeetingAgentStore } from "./meeting-agent/store"
 
 describe("api app", () => {
   test("serves a no-store health response", async () => {
@@ -15,7 +16,11 @@ describe("api app", () => {
   })
 
   test("creates a placeholder meeting-agent run from a workspace route", async () => {
-    const app = createApiApp()
+    const app = createApiApp({
+      meetingAgent: {
+        store: createInMemoryMeetingAgentStore(),
+      },
+    })
     const response = await app.request(
       "/api/workspace/acme/meeting-agent/runs",
       {

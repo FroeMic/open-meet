@@ -6,6 +6,7 @@ import {
 } from "@open-meet/feature-meeting-agent"
 import { Hono } from "hono"
 
+import { createDefaultMeetingAgentStore } from "./file-store"
 import {
   createFakeMeetingAgentSidecarClient,
   type MeetingAgentSidecarClient,
@@ -23,7 +24,11 @@ export interface MeetingAgentRouterDependencies {
 export function createMeetingAgentRouter(
   dependencies: Partial<MeetingAgentRouterDependencies> = {},
 ) {
-  const store = dependencies.store ?? createInMemoryMeetingAgentStore()
+  const store =
+    dependencies.store ??
+    (process.env.MEETING_AGENT_STORE === "memory"
+      ? createInMemoryMeetingAgentStore()
+      : createDefaultMeetingAgentStore())
   const sidecarClient =
     dependencies.sidecarClient ?? createFakeMeetingAgentSidecarClient()
   const router = new Hono()
