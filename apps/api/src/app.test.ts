@@ -36,8 +36,8 @@ describe("api app", () => {
     const body = await response.json()
     expect(body.run.status).toBe("joining")
     expect(body.run.botName).toBe("Otto Meeting Agent")
-    expect(body.run.sidecarSessionId).toMatch(/^fake_/)
-    expect(body.nextStep).toBe("sidecar_session_started")
+    expect(body.run.meetingBaasBotId).toMatch(/^fake_bot_/)
+    expect(body.nextStep).toBe("meeting_transport_started")
 
     const detailResponse = await app.request(
       `/api/workspace/acme/meeting-agent/runs/${body.run.id}`,
@@ -48,6 +48,7 @@ describe("api app", () => {
       run: {
         id: body.run.id,
         status: "joining",
+        meetingBaasBotId: body.run.meetingBaasBotId,
       },
       latestState: null,
       recentEvents: [],

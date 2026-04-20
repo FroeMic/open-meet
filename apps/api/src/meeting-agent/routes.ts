@@ -8,16 +8,16 @@ import { Hono } from "hono"
 
 import { createDefaultMeetingAgentStore } from "./file-store"
 import {
-  createFakeMeetingAgentSidecarClient,
-  type MeetingAgentSidecarClient,
-} from "./sidecar-client"
+  createMeetingTransportFromEnv,
+  type MeetingTransport,
+} from "./meeting-transport"
 import {
   createInMemoryMeetingAgentStore,
   type MeetingAgentStore,
 } from "./store"
 
 export interface MeetingAgentRouterDependencies {
-  sidecarClient: MeetingAgentSidecarClient
+  meetingTransport: MeetingTransport
   store: MeetingAgentStore
 }
 
@@ -29,8 +29,8 @@ export function createMeetingAgentRouter(
     (process.env.MEETING_AGENT_STORE === "memory"
       ? createInMemoryMeetingAgentStore()
       : createDefaultMeetingAgentStore())
-  const sidecarClient =
-    dependencies.sidecarClient ?? createFakeMeetingAgentSidecarClient()
+  const meetingTransport =
+    dependencies.meetingTransport ?? createMeetingTransportFromEnv()
   const router = new Hono()
 
   router.post(
@@ -47,9 +47,8 @@ export function createMeetingAgentRouter(
         meetingPurpose: request.meetingPurpose,
       })
 
-      const sidecarSession = await sidecarClient.startSession({
+      const meetingBot = await meetingTransport.createBot({
         runId: createdRun.id,
-        orgSlug,
         meetingUrl: createdRun.meetingUrl,
         botName: createdRun.botName,
         meetingPurpose: createdRun.meetingPurpose,
@@ -57,14 +56,14 @@ export function createMeetingAgentRouter(
 
       const run =
         (await store.updateRun(createdRun.id, {
-          status: sidecarSession.status,
-          sidecarSessionId: sidecarSession.sidecarSessionId,
+          status: meetingBot.status,
+          meetingBaasBotId: meetingBot.externalBotId,
         })) ?? createdRun
 
       return context.json(
         {
           run,
-          nextStep: "sidecar_session_started",
+          nextStep: "meeting_transport_started",
         },
         202,
       )
