@@ -1,9 +1,16 @@
 import { Hono } from "hono"
 import { logger } from "hono/logger"
 
-import { createMeetingAgentRouter } from "./meeting-agent/routes"
+import {
+  createMeetingAgentRouter,
+  type MeetingAgentRouterDependencies,
+} from "./meeting-agent/routes"
 
-export function createApiApp() {
+export interface CreateApiAppOptions {
+  meetingAgent?: Partial<MeetingAgentRouterDependencies>
+}
+
+export function createApiApp(options: CreateApiAppOptions = {}) {
   const app = new Hono()
     .use("*", logger())
     .get("/healthz", (context) => {
@@ -18,7 +25,7 @@ export function createApiApp() {
         },
       )
     })
-    .route("/", createMeetingAgentRouter())
+    .route("/", createMeetingAgentRouter(options.meetingAgent))
 
   app.notFound((context) => {
     return context.json(

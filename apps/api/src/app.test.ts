@@ -15,7 +15,8 @@ describe("api app", () => {
   })
 
   test("creates a placeholder meeting-agent run from a workspace route", async () => {
-    const response = await createApiApp().request(
+    const app = createApiApp()
+    const response = await app.request(
       "/api/workspace/acme/meeting-agent/runs",
       {
         method: "POST",
@@ -28,8 +29,24 @@ describe("api app", () => {
 
     expect(response.status).toBe(202)
     const body = await response.json()
-    expect(body.run.status).toBe("queued")
+    expect(body.run.status).toBe("joining")
     expect(body.run.botName).toBe("Otto Meeting Agent")
-    expect(body.nextStep).toBe("meetingbaas_start")
+    expect(body.run.sidecarSessionId).toMatch(/^fake_/)
+    expect(body.nextStep).toBe("sidecar_session_started")
+
+    const detailResponse = await app.request(
+      `/api/workspace/acme/meeting-agent/runs/${body.run.id}`,
+    )
+
+    expect(detailResponse.status).toBe(200)
+    await expect(detailResponse.json()).resolves.toMatchObject({
+      run: {
+        id: body.run.id,
+        status: "joining",
+      },
+      latestState: null,
+      recentEvents: [],
+      transcriptSegments: [],
+    })
   })
 })
