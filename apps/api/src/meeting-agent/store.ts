@@ -31,6 +31,34 @@ export interface MeetingAgentEventRecord {
   createdAt: string
 }
 
+export interface MeetingAgentTranscriptSegmentRecord {
+  id: string
+  runId: string
+  source: "meetingbaas" | "sidecar"
+  speakerName?: string
+  text: string
+  startSeconds?: number
+  endSeconds?: number
+  confidence?: number
+  isFinal: boolean
+  externalSegmentId?: string
+  payload: Record<string, unknown>
+  createdAt: string
+}
+
+export interface MeetingAgentStateSnapshotRecord {
+  id: string
+  runId: string
+  sequence: number
+  summary: string
+  currentTopic?: string
+  openQuestions: string[]
+  decisions: string[]
+  actionItems: string[]
+  recentContext: string[]
+  createdAt: string
+}
+
 export interface CreateMeetingAgentEventRecordInput {
   runId: string
   eventType: MeetingAgentEventType
@@ -38,6 +66,29 @@ export interface CreateMeetingAgentEventRecordInput {
   externalEventId?: string
   occurredAt: string
   payload: Record<string, unknown>
+}
+
+export interface CreateTranscriptSegmentInput {
+  runId: string
+  source: MeetingAgentTranscriptSegmentRecord["source"]
+  speakerName?: string
+  text: string
+  startSeconds?: number
+  endSeconds?: number
+  confidence?: number
+  isFinal: boolean
+  externalSegmentId?: string
+  payload: Record<string, unknown>
+}
+
+export interface CreateStateSnapshotInput {
+  runId: string
+  summary: string
+  currentTopic?: string
+  openQuestions?: string[]
+  decisions?: string[]
+  actionItems?: string[]
+  recentContext?: string[]
 }
 
 export interface CreateMeetingAgentRunRecordInput {
@@ -58,9 +109,21 @@ export interface MeetingAgentStore {
   ): Promise<MeetingAgentRunRecord | null>
   listRuns(orgSlug: string): Promise<MeetingAgentRunRecord[]>
   listEvents(runId: string): Promise<MeetingAgentEventRecord[]>
+  listTranscriptSegments(
+    runId: string,
+  ): Promise<MeetingAgentTranscriptSegmentRecord[]>
+  getLatestStateSnapshot(
+    runId: string,
+  ): Promise<MeetingAgentStateSnapshotRecord | null>
   appendEvent(
     input: CreateMeetingAgentEventRecordInput,
   ): Promise<MeetingAgentEventRecord>
+  appendTranscriptSegment(
+    input: CreateTranscriptSegmentInput,
+  ): Promise<MeetingAgentTranscriptSegmentRecord>
+  appendStateSnapshot(
+    input: CreateStateSnapshotInput,
+  ): Promise<MeetingAgentStateSnapshotRecord>
   updateRun(
     runId: string,
     patch: Partial<
@@ -79,6 +142,11 @@ export interface MeetingAgentStore {
 export function createInMemoryMeetingAgentStore(): MeetingAgentStore {
   const runs = new Map<string, MeetingAgentRunRecord>()
   const events = new Map<string, MeetingAgentEventRecord>()
+  const transcriptSegments = new Map<
+    string,
+    MeetingAgentTranscriptSegmentRecord
+  >()
+  const stateSnapshots = new Map<string, MeetingAgentStateSnapshotRecord>()
 
   return {
     async createRun(input) {
@@ -125,6 +193,18 @@ export function createInMemoryMeetingAgentStore(): MeetingAgentStore {
         .filter((event) => event.runId === runId)
         .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
     },
+    async listTranscriptSegments(runId) {
+      return [...transcriptSegments.values()]
+        .filter((segment) => segment.runId === runId)
+        .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
+    },
+    async getLatestStateSnapshot(runId) {
+      return (
+        [...stateSnapshots.values()]
+          .filter((snapshot) => snapshot.runId === runId)
+          .sort((left, right) => right.sequence - left.sequence)[0] ?? null
+      )
+    },
     async appendEvent(input) {
       const existingEvent =
         input.externalEventId === undefined
@@ -149,6 +229,55 @@ export function createInMemoryMeetingAgentStore(): MeetingAgentStore {
       events.set(event.id, event)
 
       return event
+    },
+    async appendTranscriptSegment(input) {
+      const existingSegment =
+        input.externalSegmentId === undefined
+          ? undefined
+          : [...transcriptSegments.values()].find(
+              (segment) =>
+                segment.runId === input.runId &&
+                segment.externalSegmentId === input.externalSegmentId,
+            )
+
+      if (existingSegment) {
+        return existingSegment
+      }
+
+      const segment = {
+        id: crypto.randomUUID(),
+        ...input,
+        createdAt: new Date().toISOString(),
+      }
+
+      transcriptSegments.set(segment.id, segment)
+
+      return segment
+    },
+    async appendStateSnapshot(input) {
+      const nextSequence =
+        Math.max(
+          0,
+          ...[...stateSnapshots.values()]
+            .filter((snapshot) => snapshot.runId === input.runId)
+            .map((snapshot) => snapshot.sequence),
+        ) + 1
+      const snapshot = {
+        id: crypto.randomUUID(),
+        runId: input.runId,
+        sequence: nextSequence,
+        summary: input.summary,
+        currentTopic: input.currentTopic,
+        openQuestions: input.openQuestions ?? [],
+        decisions: input.decisions ?? [],
+        actionItems: input.actionItems ?? [],
+        recentContext: input.recentContext ?? [],
+        createdAt: new Date().toISOString(),
+      }
+
+      stateSnapshots.set(snapshot.id, snapshot)
+
+      return snapshot
     },
     async updateRun(runId, patch) {
       const run = runs.get(runId)

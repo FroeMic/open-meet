@@ -6,6 +6,12 @@ import type { MeetingAgentRunRecord, MeetingAgentStore } from "./store"
 interface PersistedMeetingAgentRuns {
   runs: MeetingAgentRunRecord[]
   events: Awaited<ReturnType<MeetingAgentStore["appendEvent"]>>[]
+  transcriptSegments: Awaited<
+    ReturnType<MeetingAgentStore["appendTranscriptSegment"]>
+  >[]
+  stateSnapshots: Awaited<
+    ReturnType<MeetingAgentStore["appendStateSnapshot"]>
+  >[]
 }
 
 export function createFileMeetingAgentStore(
@@ -58,6 +64,18 @@ export function createFileMeetingAgentStore(
         .events.filter((event) => event.runId === runId)
         .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
     },
+    async listTranscriptSegments(runId) {
+      return readState(filePath)
+        .transcriptSegments.filter((segment) => segment.runId === runId)
+        .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
+    },
+    async getLatestStateSnapshot(runId) {
+      return (
+        readState(filePath)
+          .stateSnapshots.filter((snapshot) => snapshot.runId === runId)
+          .sort((left, right) => right.sequence - left.sequence)[0] ?? null
+      )
+    },
     async appendEvent(input) {
       const state = readState(filePath)
       const existingEvent =
@@ -86,6 +104,63 @@ export function createFileMeetingAgentStore(
       })
 
       return event
+    },
+    async appendTranscriptSegment(input) {
+      const state = readState(filePath)
+      const existingSegment =
+        input.externalSegmentId === undefined
+          ? undefined
+          : state.transcriptSegments.find(
+              (segment) =>
+                segment.runId === input.runId &&
+                segment.externalSegmentId === input.externalSegmentId,
+            )
+
+      if (existingSegment) {
+        return existingSegment
+      }
+
+      const segment = {
+        id: crypto.randomUUID(),
+        ...input,
+        createdAt: new Date().toISOString(),
+      }
+
+      writeState(filePath, {
+        ...state,
+        transcriptSegments: [...state.transcriptSegments, segment],
+      })
+
+      return segment
+    },
+    async appendStateSnapshot(input) {
+      const state = readState(filePath)
+      const nextSequence =
+        Math.max(
+          0,
+          ...state.stateSnapshots
+            .filter((snapshot) => snapshot.runId === input.runId)
+            .map((snapshot) => snapshot.sequence),
+        ) + 1
+      const snapshot = {
+        id: crypto.randomUUID(),
+        runId: input.runId,
+        sequence: nextSequence,
+        summary: input.summary,
+        currentTopic: input.currentTopic,
+        openQuestions: input.openQuestions ?? [],
+        decisions: input.decisions ?? [],
+        actionItems: input.actionItems ?? [],
+        recentContext: input.recentContext ?? [],
+        createdAt: new Date().toISOString(),
+      }
+
+      writeState(filePath, {
+        ...state,
+        stateSnapshots: [...state.stateSnapshots, snapshot],
+      })
+
+      return snapshot
     },
     async updateRun(runId, patch) {
       const state = readState(filePath)
@@ -121,7 +196,7 @@ export function createDefaultMeetingAgentStore() {
 
 function readState(filePath: string): PersistedMeetingAgentRuns {
   if (!existsSync(filePath)) {
-    return { runs: [], events: [] }
+    return { runs: [], events: [], transcriptSegments: [], stateSnapshots: [] }
   }
 
   const state = JSON.parse(
@@ -131,6 +206,8 @@ function readState(filePath: string): PersistedMeetingAgentRuns {
   return {
     runs: state.runs ?? [],
     events: state.events ?? [],
+    transcriptSegments: state.transcriptSegments ?? [],
+    stateSnapshots: state.stateSnapshots ?? [],
   }
 }
 

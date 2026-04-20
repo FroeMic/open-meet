@@ -19,6 +19,10 @@ import {
   type MeetingTransport,
 } from "./meeting-transport"
 import {
+  stateSnapshotFromPayload,
+  transcriptSegmentFromPayload,
+} from "./sidecar-events"
+import {
   createInMemoryMeetingAgentStore,
   type MeetingAgentStore,
 } from "./store"
@@ -101,9 +105,9 @@ export function createMeetingAgentRouter(
       return context.json(
         {
           run,
-          latestState: null,
+          latestState: await store.getLatestStateSnapshot(run.id),
           recentEvents: await store.listEvents(run.id),
-          transcriptSegments: [],
+          transcriptSegments: await store.listTranscriptSegments(run.id),
           delegations: [],
         },
         200,
@@ -211,12 +215,45 @@ export function createMeetingAgentRouter(
   router.post(
     "/api/internal/meeting-agent/runs/:runId/events",
     zValidator("json", meetingAgentEventSchema.omit({ runId: true })),
-    (context) => {
+    async (context) => {
+      const runId = context.req.param("runId")
+      const token = process.env.MEETING_AGENT_SIDECAR_TOKEN
+
+      if (token && context.req.header("Authorization") !== `Bearer ${token}`) {
+        return context.json({ error: "Unauthorized" }, 401)
+      }
+
+      const input = context.req.valid("json")
+      const event = await store.appendEvent({
+        runId,
+        ...input,
+      })
+
+      if (input.eventType === "transcript_delta") {
+        const transcriptSegment = transcriptSegmentFromPayload(
+          runId,
+          input.payload,
+        )
+
+        if (transcriptSegment) {
+          await store.appendTranscriptSegment(transcriptSegment)
+        }
+      }
+
+      if (input.eventType === "state_snapshot") {
+        const stateSnapshot = stateSnapshotFromPayload(runId, input.payload)
+
+        if (stateSnapshot) {
+          await store.appendStateSnapshot(stateSnapshot)
+        }
+      }
+
       return context.json(
         {
           accepted: true,
-          runId: context.req.param("runId"),
-          eventType: context.req.valid("json").eventType,
+          eventId: event.id,
+          runId,
+          eventType: input.eventType,
         },
         202,
       )

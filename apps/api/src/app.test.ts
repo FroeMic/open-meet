@@ -95,4 +95,76 @@ describe("api app", () => {
       recentEvents: [{ externalEventId: "evt_123" }],
     })
   })
+
+  test("ingests sidecar transcript and state events into run detail", async () => {
+    const app = createApiApp({
+      meetingAgent: {
+        store: createInMemoryMeetingAgentStore(),
+      },
+    })
+    const createResponse = await app.request(
+      "/api/workspace/acme/meeting-agent/runs",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          meetingUrl: "https://meet.google.com/abc-defg-hij",
+        }),
+      },
+    )
+    const createdBody = await createResponse.json()
+
+    await app.request(
+      `/api/internal/meeting-agent/runs/${createdBody.run.id}/events`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventType: "transcript_delta",
+          source: "sidecar",
+          occurredAt: "2026-04-20T10:00:00.000Z",
+          payload: {
+            text: "Can Otto check the launch note?",
+            speaker_name: "Mia",
+            segment_id: "seg_1",
+            is_final: true,
+          },
+        }),
+      },
+    )
+    await app.request(
+      `/api/internal/meeting-agent/runs/${createdBody.run.id}/events`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventType: "state_snapshot",
+          source: "sidecar",
+          occurredAt: "2026-04-20T10:00:01.000Z",
+          payload: {
+            summary: "Discussing launch notes.",
+            current_topic: "Launch readiness",
+            open_questions: ["Who follows up?"],
+          },
+        }),
+      },
+    )
+
+    const detailResponse = await app.request(
+      `/api/workspace/acme/meeting-agent/runs/${createdBody.run.id}`,
+    )
+
+    await expect(detailResponse.json()).resolves.toMatchObject({
+      latestState: {
+        summary: "Discussing launch notes.",
+        currentTopic: "Launch readiness",
+      },
+      transcriptSegments: [
+        {
+          text: "Can Otto check the launch note?",
+          speakerName: "Mia",
+        },
+      ],
+    })
+  })
 })
