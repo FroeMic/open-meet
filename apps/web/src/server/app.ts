@@ -27,5 +27,5 @@ export function createWebApp() {
 }
 
 function getApiBaseUrl() {
-  return process.env.API_BASE_URL ?? "http://localhost:3002"
+  return process.env.API_BASE_URL ?? "http://localhost:7102"
 }

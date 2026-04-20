@@ -1,6 +1,6 @@
 import { createMeetingAgentSidecarApp } from "./app"
 
-const port = Number.parseInt(process.env.MEETING_AGENT_PORT ?? "3010", 10)
+const port = Number.parseInt(process.env.MEETING_AGENT_PORT ?? "7110", 10)
 const app = createMeetingAgentSidecarApp()
 
 console.info(`[meeting-agent] starting on :${port}`)

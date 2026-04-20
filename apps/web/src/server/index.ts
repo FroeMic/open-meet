@@ -1,6 +1,6 @@
 import { createWebApp } from "./app"
 
-const port = Number.parseInt(process.env.WEB_PORT ?? "3000", 10)
+const port = Number.parseInt(process.env.WEB_PORT ?? "7100", 10)
 const app = createWebApp()
 
 console.info(`[web] starting on :${port}`)

@@ -7,7 +7,7 @@ describe("meeting-agent page rendering", () => {
     expect(
       renderMeetingsPage({
         orgSlug: "acme",
-        apiBaseUrl: "http://localhost:3002",
+        apiBaseUrl: "http://localhost:7102",
       }),
     ).toContain("Start meeting agent")
   })
@@ -17,7 +17,7 @@ describe("meeting-agent page rendering", () => {
       renderMeetingRunDetailPage({
         orgSlug: "acme",
         runId: "run_123",
-        apiBaseUrl: "http://localhost:3002",
+        apiBaseUrl: "http://localhost:7102",
       }),
     ).toContain('data-run-id="run_123"')
   })
