@@ -27,7 +27,7 @@ testable vertical path.
 - Package-level `format`, `lint`, `test`, and `build` gates.
 - Shared meeting-agent contracts and initial speech-policy types.
 
-### 1. Local Skeleton Slice - Next
+### 1. Local Skeleton Slice - Done
 
 Goal: every service runs, the API can create a fake meeting run, and the sidecar
 boundary is exercised without real MeetingBaas.
@@ -48,7 +48,7 @@ Testable outcome:
 - Curl can fetch the same run detail.
 - No DB or MeetingBaas required.
 
-### 2. Persistent Run Slice
+### 2. Persistent Run Slice - Done
 
 Goal: meeting runs survive process restart.
 
@@ -65,7 +65,7 @@ Testable outcome:
 - Fetch the same run from persistent storage.
 - Repository tests cover persistence behavior.
 
-### 3. MeetingBaas Create-Bot Slice
+### 3. MeetingBaas Create-Bot Slice - Done
 
 Goal: a real hosted MeetingBaas bot can be added to a meeting.
 
@@ -82,7 +82,7 @@ Testable outcome:
   `Otto Meeting Agent` participant.
 - Without the key, fake mode remains testable.
 
-### 4. Lifecycle Event Slice
+### 4. Lifecycle Event Slice - Done
 
 Goal: provider lifecycle events update the run and produce an event timeline.
 
@@ -100,7 +100,7 @@ Testable outcome:
 - Duplicate webhook does not corrupt state.
 - Run detail returns recent events.
 
-### 5. Live Transcript And State Slice
+### 5. Live Transcript And State Slice - Done
 
 Goal: fake sidecar can push live transcript and meeting-description updates.
 
@@ -116,7 +116,7 @@ Testable outcome:
 - Push or generate transcript/state events.
 - API detail shows current topic, summary, open questions, and recent turns.
 
-### 6. Minimal Web UI Slice
+### 6. Minimal Web UI Slice - Done
 
 Goal: user can start and observe a fake or real run from the browser.
 
