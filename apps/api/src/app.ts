@@ -1,4 +1,5 @@
 import { Hono } from "hono"
+import { cors } from "hono/cors"
 import { logger } from "hono/logger"
 
 import {
@@ -13,6 +14,7 @@ export interface CreateApiAppOptions {
 export function createApiApp(options: CreateApiAppOptions = {}) {
   const app = new Hono()
     .use("*", logger())
+    .use("*", cors())
     .get("/healthz", (context) => {
       return context.json(
         {
